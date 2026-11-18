@@ -1,31 +1,23 @@
 # 🔮 SnapSage
 
-**Snap it. Ask anything.** A NotebookLM-style AI notebook + vision chat assistant:
+**Snap it. Ask anything.**
 
-- **📄 Document RAG** — upload PDFs / TXT / MD files, and ask questions about them. Chunks are embedded with Pinecone's `multilingual-e5-large` model and stored in a **Pinecone vector database**; answers are retrieved (top-k vector search), grounded in the matching chunks, streamed live, and **cited with the source filename**.
-- **🖼️ Vision chat** — attach images (drag & drop, paste, picker) and ask about them, multi-turn, via Groq's vision models.
+SnapSage is a NotebookLM-style AI assistant. Upload your documents (PDF, TXT, MD), ask questions, and get answers **from your files** — streamed live, with citations to the exact source. You can also chat with images, or just chat normally.
 
-Built with **Flask + Groq + Pinecone**, evolved from the Lecture 16 (vision chatbot) and Lecture 11 (RAG shop-support) projects.
+Built with **Flask + Groq + Pinecone**.
 
-## Features
+## What it does
 
-### Notebook (RAG over your documents)
-- Upload up to 25 sources per notebook (PDF, TXT, MD)
-- Word-based chunking (150 words / 30 overlap) → Pinecone Inference embeddings → vector upsert
-- Each browser session gets its **own notebook namespace** — documents never mix between users
-- Streaming answers (SSE) with `[filename.pdf]` citations and source chips under each answer
-- Grounded prompts: the model may only use your documents, and says *"I couldn't find that in your sources."* otherwise
-- Per-source removal and clear-all (vectors deleted from Pinecone by metadata filter)
-- Conversation-aware: recent text turns are included so follow-up questions work
+- 📄 **Ask your documents** — upload files, and SnapSage chunks them, embeds them into a Pinecone vector database, and answers your questions using only your content. Every answer cites the file it came from.
+- 🖼️ **Ask about images** — attach images (drag & drop, paste, or picker) and ask about them. SnapSage remembers the conversation, so follow-ups work.
+- 💬 **Just chat** — with no sources attached, SnapSage is a simple streaming chat assistant.
 
-### Vision chat (unchanged SnapSage core)
-- Multi-turn vision with up to 4 images per message
-- Client-side image resizing before upload, session-isolated history
-- The UI switches mode automatically: **DOCS · RAG** when sources exist, **CHAT** otherwise (images always force vision chat)
+The UI switches automatically: **DOCS · RAG** mode when sources exist, **CHAT** mode otherwise.
 
 ## Setup
 
 ```bash
+git clone https://github.com/mithilprabhu888-ux/SnapSage.git
 cd SnapSage
 python -m venv .venv
 .venv\Scripts\activate        # Windows  (Linux/macOS: source .venv/bin/activate)
@@ -34,50 +26,25 @@ copy .env.example .env        # then fill in GROQ_API_KEY and PINECONE_API_KEY
 python app.py
 ```
 
-Open http://127.0.0.1:8080. The Pinecone index (`snapsage-notes` by default) is
-created automatically on first run (AWS us-east-1 serverless).
+Open http://127.0.0.1:8080. The Pinecone index is created automatically on first run.
 
-## Configuration (all via `.env`)
+## Configuration (`.env`)
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GROQ_API_KEY` | *(required)* | Groq API key (chat + answers) |
+| `GROQ_API_KEY` | *(required)* | Groq API key |
 | `PINECONE_API_KEY` | *(required for RAG)* | Pinecone API key |
 | `PINECONE_INDEX_NAME` | `snapsage-notes` | Vector index name |
-| `LLM_MODEL` | `llama-3.3-70b-versatile` | Model used for grounded answers |
+| `LLM_MODEL` | `llama-3.3-70b-versatile` | Model for document answers |
 | `GROQ_MODEL` | `qwen/qwen3.8-27b` | Vision chat model |
 | `PORT` | `8080` | Server port |
 
-Without `PINECONE_API_KEY` the app still works as a vision chat assistant
-(document endpoints return `503`).
+Without a Pinecone key, SnapSage still works as a vision chat assistant.
 
-## API
+## How RAG works here
 
-| Method | Route | Description |
-|---|---|---|
-| `POST` | `/api/chat` | Vision/general chat (+ optional `images`), returns JSON `{reply}` |
-| `POST` | `/api/chat/stream` | Same, streamed as SSE |
-| `POST` | `/api/sources` | Upload `files` (PDF/TXT/MD) → chunk, embed, store; returns `{ingested, sources}` |
-| `GET` | `/api/sources` | List this notebook's sources `{sources: [{name, chunks}]}` |
-| `DELETE` | `/api/sources?name=` | Remove one source (or all without `name`) |
-| `POST` | `/api/ask/stream` | RAG question over your sources, streamed SSE with a final `sources` event |
-| `DELETE` | `/api/chat` | Clear this session's chat history **and** notebook |
-
-SSE format: `data: {"delta": "..."}` chunks; vision chat ends with `{"done": true}`,
-RAG ends with `{"sources": ["file.pdf", ...]}`; errors arrive as `{"error": "..."}`.
-
-## Tests
-
-```bash
-python -m unittest discover -p "test_*.py" -v
-```
-
-11 tests cover the vision chat, session isolation, streaming, PDF/TXT ingestion,
-grounded answers, citations, source deletion and the no-Pinecone fallback.
-
-## Notes & limits
-
-- Uploads capped at **8 MB per request**; images are pre-resized client-side
-- History/chunks are in-memory manifests per process; vector data lives in Pinecone
-  (restarting the server clears chat + the source list, vectors remain until deleted)
-- Embeddings use Pinecone Inference (`multilingual-e5-large`, 1024 dims, cosine)
+1. **Upload** — documents are split into ~150-word overlapping chunks
+2. **Embed** — chunks are embedded with `multilingual-e5-large` via Pinecone Inference
+3. **Store** — vectors go into a Pinecone serverless index; each browser session gets its own namespace, so notebooks never mix
+4. **Ask** — your question is embedded, top-k similar chunks are retrieved, and the LLM answers using *only* that context, citing the source files
+5. **No answer in your docs?** — it says *"I couldn't find that in your sources."*
