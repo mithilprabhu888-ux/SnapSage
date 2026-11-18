@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapSage</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(98, 80, 255, 0.20), transparent 35%),
+                radial-gradient(circle at bottom right, rgba(0, 191, 255, 0.12), transparent 35%),
+                #0b0d13;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .app {
+            width: 96%;
+            max-width: 1180px;
+            height: 92vh;
+            background: rgba(18, 21, 30, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+
+        .drop-overlay {
+            position: absolute;
+            inset: 12px;
+            border: 2px dashed rgba(98, 80, 255, 0.7);
+            border-radius: 20px;
+            background: rgba(98, 80, 255, 0.12);
+            display: none;
+            place-items: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #c9c2ff;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .app.dragging .drop-overlay {
+            display: grid;
+        }
+
+        /* ---------------- SIDEBAR (Sources) ---------------- */
+
+        .sidebar {
+            width: 300px;
+            flex-shrink: 0;
+            border-right: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .side-head {
+            height: 76px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+            flex-shrink: 0;
+        }
+
+        .logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
+            background: linear-gradient(135deg, #6250ff, #00bfff);
+            display: grid;
+            place-items: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .side-head h1 {
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .side-head p {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.45);
+            margin-top: 2px;
+        }
+
+        .side-section {
+            padding: 16px 20px 6px;
+            flex-shrink: 0;
+        }
+
+        .side-section h2 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clear-all {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .clear-all:hover {
+            color: #e5484d;
+        }
+
+        .add-source {
+            width: 100%;
+            padding: 11px;
+            border-radius: 12px;
+            border: 1px dashed rgba(98, 80, 255, 0.5);
+            background: rgba(98, 80, 255, 0.08);
+            color: #c9c2ff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .add-source:hover {
+            background: rgba(98, 80, 255, 0.18);
+        }
+
+        .sources {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sources::-webkit-scrollbar,
+        .chat::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .sources::-webkit-scrollbar-thumb,
+        .chat::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+        }
+
+        .source-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+        }
+
+        .source-item .icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            background: rgba(98, 80, 255, 0.22);
+            display: grid;
+            place-items: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .source-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .source-info .name {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .source-info .meta {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 2px;
+        }
+
+        .source-item button {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 13px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .source-item button:hover {
+            color: #e5484d;
+            background: rgba(229, 72, 77, 0.12);
+        }
+
+        .sources-empty {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 12.5px;
+            line-height: 1.6;
+            padding: 18px 8px;
+        }
+
+        .side-note {
+            padding: 12px 20px 16px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+            line-height: 1.5;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            flex-shrink: 0;
+        }
+
+        /* ---------------- MAIN CHAT ---------------- */
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .empty {
+            margin: auto;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.4);
+            max-width: 480px;
+        }
+
+        .empty .big {
+            font-size: 44px;
+            margin-bottom: 12px;
+        }
+
+        .empty h2 {
+            font-size: 21px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.78);
+            margin-bottom: 10px;
+        }
+
+        .empty p {
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            max-width: 86%;
+        }
+
+        .row.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            font-size: 16px;
+        }
+
+        .row.ai .avatar {
+            background: linear-gradient(135deg, #6250ff, #00bfff);
+        }
+
+        .row.user .avatar {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .bubble-wrap {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .bubble {
+            padding: 13px 17px;
+            border-radius: 18px;
+            font-size: 14.5px;
+            line-height: 1.65;
+            overflow-wrap: break-word;
+        }
+
+        .row.ai .bubble {
+            background: rgba(255, 255, 255, 0.06);
+            border-top-left-radius: 6px;
+        }
+
+        .row.user .bubble {
+            background: rgba(98, 80, 255, 0.28);
+            border: 1px solid rgba(98, 80, 255, 0.35);
+            border-top-right-radius: 6px;
+        }
+
+        .bubble p+p,
+        .bubble ul+p,
+        .bubble p+ul,
+        .bubble h3+p {
+            margin-top: 8px;
+        }
+
+        .bubble ul,
+        .bubble ol {
+            padding-left: 20px;
+            margin-top: 6px;
+        }
+
+        .bubble h3,
+        .bubble h4 {
+            font-size: 15px;
+            margin-top: 4px;
+        }
+
+        .bubble code {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: "Cascadia Code", Consolas, monospace;
+        }
+
+        .bubble pre {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px 14px;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .bubble pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .cite {
+            display: inline-block;
+            background: rgba(0, 191, 255, 0.14);
+            border: 1px solid rgba(0, 191, 255, 0.3);
+            color: #7fdcff;
+            font-size: 11.5px;
+            padding: 1px 7px;
+            border-radius: 8px;
+            margin: 0 2px;
+            white-space: nowrap;
+        }
+
+        .thumbs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 9px;
+        }
+
+        .thumbs img {
+            width: 108px;
+            height: 108px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+        }
+
+        .src-row {
+            display: flex;
+            gap: 7px;
+            flex-wrap: wrap;
+        }
+
+        .src-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11.5px;
+            color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 4px 10px;
+            border-radius: 9px;
+        }
+
+        .src-chip .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #00bfff;
+        }
+
+        .typing {
+            display: inline-flex;
+            gap: 5px;
+            align-items: center;
+            height: 20px;
+        }
+
+        .typing span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.55);
+            animation: pulse 1.2s infinite ease-in-out;
+        }
+
+        .typing span:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .typing span:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            60%,
+            100% {
+                opacity: 0.3;
+                transform: translateY(0);
+            }
+
+            30% {
+                opacity: 1;
+                transform: translateY(-3px);
+            }
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #c9c2ff;
+            margin-left: 3px;
+            vertical-align: text-bottom;
+            animation: blink 0.9s steps(1) infinite;
+            border-radius: 2px;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* ---------------- COMPOSER ---------------- */
+
+        .composer {
+            padding: 16px 28px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            flex-shrink: 0;
+        }
+
+        .previews {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .preview {
+            position: relative;
+        }
+
+        .preview img {
+            width: 74px;
+            height: 74px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .preview button {
+            position: absolute;
+            top: -7px;
+            right: -7px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: none;
+            background: #e5484d;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .inputbar {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 10px 12px;
+            transition: border-color 0.15s ease;
+        }
+
+        .inputbar:focus-within {
+            border-color: rgba(98, 80, 255, 0.6);
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            font-size: 19px;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        #message {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 14.5px;
+            resize: none;
+            max-height: 140px;
+            line-height: 1.5;
+            padding: 6px 0;
+        }
+
+        #message::placeholder {
+            color: rgba(255, 255, 255, 0.35);
+        }
+
+        .send {
+            background: linear-gradient(135deg, #6250ff, #00bfff);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 13px;
+            font-size: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .send:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .hint {
+            font-size: 11.5px;
+            color: rgba(255, 255, 255, 0.3);
+            margin-top: 9px;
+            text-align: center;
+        }
+
+        .mode-badge {
+            display: inline-block;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            padding: 2px 9px;
+            border-radius: 8px;
+            vertical-align: middle;
+        }
+
+        .mode-docs {
+            background: rgba(0, 191, 255, 0.15);
+            color: #7fdcff;
+        }
+
+        .mode-chat {
+            background: rgba(98, 80, 255, 0.18);
+            color: #c9c2ff;
+        }
+
+        /* LIGHTBOX */
+
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            place-items: center;
+            z-index: 50;
+            cursor: zoom-out;
+        }
+
+        .lightbox img {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: 12px;
+        }
+
+        @media (max-width: 860px) {
+            .sidebar {
+                width: 240px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app" id="app">
+        <div class="drop-overlay" id="dropOverlay">Drop files &amp; images to add</div>
+
+        <!-- SOURCES SIDEBAR -->
+        <aside class="sidebar">
+            <div class="side-head">
+                <div class="logo">🔮</div>
+                <div>
+                    <h1>SnapSage</h1>
+                    <p>Notebook &amp; vision AI</p>
+                </div>
+            </div>
+            <div class="side-section">
+                <h2>Sources <button class="clear-all" id="clearSources">Clear all</button></h2>
+                <button class="add-source" id="addSource">＋ Upload PDF / TXT / MD</button>
+                <input type="file" id="docInput" accept=".pdf,.txt,.md" multiple hidden>
+            </div>
+            <div class="sources" id="sources">
+                <div class="sources-empty" id="sourcesEmpty">
+                    No sources yet.<br>
+                    Upload documents, then ask questions —<br>
+                    answers come from <b>your files</b> via RAG.
+                </div>
+            </div>
+            <div class="side-note">
+                Answers with sources are grounded in these documents
+                (Pinecone vector search). With no sources, SnapSage is a
+                general vision chat assistant.
+            </div>
+        </aside>
+
+        <!-- CHAT -->
+        <main class="main">
+            <div class="chat" id="chat">
+                <div class="empty" id="empty">
+                    <div class="big">📚</div>
+                    <h2>Your personal NotebookLM</h2>
+                    <p>Upload PDFs on the left, then ask anything about them —
+                        answers stream live with citations to the source files.<br><br>
+                        You can also attach images (📎 or Ctrl+V) and ask about them,
+                        or just chat normally.</p>
+                </div>
+            </div>
+
+            <div class="composer">
+                <div class="previews" id="previews"></div>
+                <div class="inputbar">
+                    <button class="icon-btn" id="attach" title="Attach images">📎</button>
+                    <textarea id="message" rows="1" placeholder="Ask about your sources..."></textarea>
+                    <button class="send" id="send" title="Send">➤</button>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" multiple hidden>
+                <div class="hint">
+                    <span class="mode-badge mode-docs" id="modeBadge">DOCS</span>
+                    Enter to send • Shift+Enter for a new line • documents are
+                    resized &amp; images capped at 8 MB
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="lightbox" id="lightbox"><img id="lightboxImg" alt=""></div>
+
+    <script>
+        const chat = document.getElementById("chat");
+        const empty = document.getElementById("empty");
+        const messageBox = document.getElementById("message");
+        const sendBtn = document.getElementById("send");
+        const attachBtn = document.getElementById("attach");
+        const fileInput = document.getElementById("fileInput");
+        const docInput = document.getElementById("docInput");
+        const previews = document.getElementById("previews");
+        const sourcesBox = document.getElementById("sources");
+        const sourcesEmpty = document.getElementById("sourcesEmpty");
+        const modeBadge = document.getElementById("modeBadge");
+        const app = document.getElementById("app");
+        const lightbox = document.getElementById("lightbox");
+        const lightboxImg = document.getElementById("lightboxImg");
+
+        let attachments = [];   // image blobs for chat
+        let sources = [];       // [{name, chunks}]
+        let busy = false;
+        let pineconeReady = true;   // flips off on 503
+
+        // ---------- markdown (small, dependency-free) ----------
+
+        function esc(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        function inline(md) {
+            let html = esc(md)
+                .replace(/`([^`]+)`/g, "<code>$1</code>")
+                .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+                .replace(/\*([^*]+)\*/g, "<i>$1</i>")
+                .replace(/\[([^\]]+\.pdf|[^\]]+\.txt|[^\]]+\.md)\]/g,
+                    '<span class="cite">$1</span>');
+            return html;
+        }
+
+        function renderMarkdown(text) {
+            const blocks = text.split(/```/);
+            let html = "";
+            for (let i = 0; i < blocks.length; i++) {
+                if (i % 2 === 1) {
+                    const body = blocks[i].replace(/^\w*\n/, "");
+                    html += `<pre><code>${esc(body.trimEnd())}</code></pre>`;
+                    continue;
+                }
+                const lines = blocks[i].split("\n");
+                let list = null;
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    const bullet = trimmed.match(/^[-*]\s+(.*)/);
+                    const number = trimmed.match(/^\d+[.)]\s+(.*)/);
+                    if (bullet || number) {
+                        const tag = number ? "ol" : "ul";
+                        if (list !== tag) {
+                            if (list) html += `</${list}>`;
+                            html += `<${tag}>`;
+                            list = tag;
+                        }
+                        html += `<li>${inline((bullet || number)[1])}</li>`;
+                        continue;
+                    }
+                    if (list) { html += `</${list}>`; list = null; }
+                    const heading = trimmed.match(/^(#{1,3})\s+(.*)/);
+                    if (heading) {
+                        const level = heading[1].length + 2;
+                        html += `<h${level}>${inline(heading[2])}</h${level}>`;
+                    } else if (trimmed) {
+                        html += `<p>${inline(trimmed)}</p>`;
+                    }
+                }
+                if (list) html += `</${list}>`;
+            }
+            return html;
+        }
+
+        // ---------- chat rendering ----------
+
+        function scrollDown() {
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function addRow(role) {
+            empty.style.display = "none";
+            const row = document.createElement("div");
+            row.className = `row ${role === "user" ? "user" : "ai"}`;
+            row.innerHTML = `
+                <div class="avatar">${role === "user" ? "🧑" : "🔮"}</div>
+                <div class="bubble-wrap"><div class="bubble"></div></div>`;
+            chat.appendChild(row);
+            scrollDown();
+            return row.querySelector(".bubble");
+        }
+
+        function addThumbs(bubble, urls) {
+            if (!urls.length) return;
+            const thumbs = document.createElement("div");
+            thumbs.className = "thumbs";
+            for (const url of urls) {
+                const img = document.createElement("img");
+                img.src = url;
+                img.onclick = () => showLightbox(url);
+                thumbs.appendChild(img);
+            }
+            bubble.prepend(thumbs);
+        }
+
+        function showLightbox(url) {
+            lightboxImg.src = url;
+            lightbox.style.display = "grid";
+        }
+
+        lightbox.onclick = () => lightbox.style.display = "none";
+
+        function showTyping() {
+            const bubble = addRow("ai");
+            bubble.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+            return bubble;
+        }
+
+        function addSourceChips(wrap, names) {
+            if (!names || !names.length) return;
+            const row = document.createElement("div");
+            row.className = "src-row";
+            for (const name of names) {
+                const chip = document.createElement("span");
+                chip.className = "src-chip";
+                chip.innerHTML = `<span class="dot"></span>${esc(name)}`;
+                row.appendChild(chip);
+            }
+            wrap.appendChild(row);
+            scrollDown();
+        }
+
+        // ---------- sources panel ----------
+
+        function renderSources() {
+            [...sourcesBox.querySelectorAll(".source-item")].forEach(el => el.remove());
+            if (!sources.length) {
+                sourcesEmpty.style.display = "";
+            } else {
+                sourcesEmpty.style.display = "none";
+                for (const src of sources) {
+                    const item = document.createElement("div");
+                    item.className = "source-item";
+                    item.innerHTML = `
+                        <div class="icon">📄</div>
+                        <div class="source-info">
+                            <div class="name" title="${esc(src.name)}">${esc(src.name)}</div>
+                            <div class="meta">${src.chunks} chunk${src.chunks === 1 ? "" : "s"}</div>
+                        </div>
+                        <button title="Remove source">✕</button>`;
+                    item.querySelector("button").onclick = () => removeSource(src.name);
+                    sourcesBox.appendChild(item);
+                }
+            }
+            modeBadge.textContent = sources.length ? "DOCS · RAG" : "CHAT";
+            modeBadge.className = `mode-badge ${sources.length ? "mode-docs" : "mode-chat"}`;
+        }
+
+        async function loadSources() {
+            try {
+                const res = await fetch("/api/sources");
+                if (res.status === 503) { pineconeReady = false; return; }
+                const data = await res.json();
+                sources = data.sources || [];
+            } catch { pineconeReady = false; }
+            renderSources();
+        }
+
+        async function uploadDocs(files) {
+            const allowed = [...files].filter(f =>
+                /\.(pdf|txt|md)$/i.test(f.name));
+            if (!allowed.length) return;
+            const fd = new FormData();
+            allowed.forEach(f => fd.append("files", f));
+            const notice = addRow("ai");
+            notice.innerHTML = `⏳ Reading and embedding ${allowed.length} document${allowed.length === 1 ? "" : "s"}...`;
+            scrollDown();
+            try {
+                const res = await fetch("/api/sources", { method: "POST", body: fd });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    notice.textContent = data.error || `Upload failed (${res.status}).`;
+                    return;
+                }
+                sources = data.sources || [];
+                renderSources();
+                const ok = (data.ingested || []).filter(i => !i.empty);
+                const skipped = (data.ingested || []).filter(i => i.empty);
+                let msg = `✅ Added ${ok.length} document${ok.length === 1 ? "" : "s"} ` +
+                    `(${ok.reduce((s, i) => s + i.chunks, 0)} chunks indexed).`;
+                if (skipped.length) msg += ` Skipped empty: ${skipped.map(i => i.name).join(", ")}.`;
+                notice.textContent = msg;
+            } catch {
+                notice.textContent = "Upload failed. Please try again.";
+            }
+        }
+
+        async function removeSource(name) {
+            const res = await fetch(`/api/sources?name=${encodeURIComponent(name)}`,
+                { method: "DELETE" });
+            if (res.ok) {
+                const data = await res.json();
+                sources = data.sources || [];
+                renderSources();
+            }
+        }
+
+        document.getElementById("addSource").onclick = () => docInput.click();
+        docInput.onchange = () => { uploadDocs(docInput.files); docInput.value = ""; };
+
+        document.getElementById("clearSources").onclick = async () => {
+            if (!sources.length) return;
+            const res = await fetch("/api/sources", { method: "DELETE" });
+            if (res.ok) {
+                const data = await res.json();
+                sources = data.sources || [];
+                renderSources();
+            }
+        };
+
+        // ---------- images ----------
+
+        async function resizeImage(file) {
+            const bitmap = await createImageBitmap(file);
+            const MAX = 1600;
+            const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.round(bitmap.width * scale);
+            canvas.height = Math.round(bitmap.height * scale);
+            canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise(resolve =>
+                canvas.toBlob(resolve, "image/jpeg", 0.85));
+            return blob || file;
+        }
+
+        async function addFiles(files) {
+            const images = [...files].filter(f => f.type.startsWith("image/"));
+            for (const file of images) {
+                if (attachments.length >= 4) break;
+                const blob = await resizeImage(file);
+                attachments.push({ blob, url: URL.createObjectURL(blob), name: file.name });
+            }
+            const docs = [...files].filter(f => /\.(pdf|txt|md)$/i.test(f.name));
+            if (docs.length) await uploadDocs(docs);
+            renderPreviews();
+        }
+
+        function renderPreviews() {
+            previews.innerHTML = "";
+            attachments.forEach((att, i) => {
+                const box = document.createElement("div");
+                box.className = "preview";
+                const img = document.createElement("img");
+                img.src = att.url;
+                const del = document.createElement("button");
+                del.textContent = "✕";
+                del.onclick = () => { attachments.splice(i, 1); renderPreviews(); };
+                box.append(img, del);
+                previews.appendChild(box);
+            });
+        }
+
+        attachBtn.onclick = () => fileInput.click();
+        fileInput.onchange = () => { addFiles(fileInput.files); fileInput.value = ""; };
+
+        document.addEventListener("paste", e => {
+            if (busy) return;
+            const files = [...(e.clipboardData?.files || [])];
+            if (files.length) { e.preventDefault(); addFiles(files); }
+        });
+
+        let dragDepth = 0;
+        document.addEventListener("dragenter", e => {
+            e.preventDefault();
+            dragDepth++;
+            app.classList.add("dragging");
+        });
+        document.addEventListener("dragleave", e => {
+            e.preventDefault();
+            if (--dragDepth === 0) app.classList.remove("dragging");
+        });
+        document.addEventListener("dragover", e => e.preventDefault());
+        document.addEventListener("drop", e => {
+            e.preventDefault();
+            dragDepth = 0;
+            app.classList.remove("dragging");
+            if (!busy && e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
+        });
+
+        // ---------- send / stream ----------
+
+        function setBusy(state) {
+            busy = state;
+            sendBtn.disabled = state;
+        }
+
+        // Docs mode (RAG) when sources exist and no images attached;
+        // vision chat otherwise.
+        function useDocs() {
+            return pineconeReady && sources.length > 0 && attachments.length === 0;
+        }
+
+        async function sendMessage() {
+            const text = messageBox.value.trim();
+            if (!text || busy) return;
+            const urls = attachments.map(a => a.url);
+            const docs = useDocs();
+
+            const userBubble = addRow("user");
+            addThumbs(userBubble, urls);
+            userBubble.appendChild(document.createTextNode(text));
+
+            const fd = new FormData();
+            fd.append("message", text);
+            attachments.forEach(a => fd.append("images", a.blob, a.name));
+            attachments = [];
+            renderPreviews();
+            messageBox.value = "";
+            autoGrow();
+
+            setBusy(true);
+            const aiBubble = showTyping();
+            const wrap = aiBubble.parentElement;
+            let acc = "";
+            let failed = false;
+
+            try {
+                const endpoint = docs ? "/api/ask/stream" : "/api/chat/stream";
+                const res = await fetch(endpoint, { method: "POST", body: fd });
+                if (!res.ok || !res.body) {
+                    aiBubble.textContent = res.status === 503
+                        ? "Pinecone is not configured. Set PINECONE_API_KEY in .env."
+                        : "Unable to get an AI response. Check your API key and model name, then try again.";
+                    setBusy(false);
+                    return;
+                }
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split("\n\n");
+                    buffer = parts.pop();
+                    for (const part of parts) {
+                        if (!part.startsWith("data: ")) continue;
+                        const evt = JSON.parse(part.slice(6));
+                        if (evt.delta) {
+                            acc += evt.delta;
+                            aiBubble.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
+                            scrollDown();
+                        } else if (evt.sources) {
+                            addSourceChips(wrap, evt.sources);
+                        } else if (evt.error) {
+                            failed = true;
+                            aiBubble.textContent = evt.error;
+                        }
+                    }
+                }
+                if (!failed) aiBubble.innerHTML = renderMarkdown(acc) || acc;
+            } catch {
+                aiBubble.textContent = acc || "Connection lost. Please try again.";
+            }
+            setBusy(false);
+            scrollDown();
+        }
+
+        sendBtn.onclick = sendMessage;
+        messageBox.addEventListener("keydown", e => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function autoGrow() {
+            messageBox.style.height = "auto";
+            messageBox.style.height = Math.min(messageBox.scrollHeight, 140) + "px";
+        }
+        messageBox.addEventListener("input", autoGrow);
+
+        document.getElementById("clearSources");
+    </script>
+</body>
+
+</html>
